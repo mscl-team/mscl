@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MSCL",
+  "version": "0.1.0",
+  "identifier": "com.mscl.launcher",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "MSCL · 月之海启动器",
+        "width": 1080,
+        "height": 720,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "decorations": false,
+        "transparent": true,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "licenseFile": "windows/LICENSE.txt",
+    "publisher": "MSCL Team",
+    "copyright": "Copyright © 2026 MSCL Team",
+    "category": "Game",
+    "shortDescription": "月之海 Minecraft 启动器",
+    "longDescription": "MSCL（月之海启动器）是一款轻量的 Minecraft Java 版启动器：支持多版本安装与启动、版本隔离、Mod 管理、镜像加速下载与完整性校验修复。",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "template": "windows/installer.nsi",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "languages": [
+          "SimpChinese",
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "installMode": "currentUser",
+        "startMenuFolder": "MSCL"
+      }
+    }
+  },
+  "plugins": {}
+}

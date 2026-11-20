@@ -1,0 +1,111 @@
+name: 跨平台编译验证
+
+# 三平台编译 + 类型检查矩阵。
+# 目的：在无法实机验证 macOS/Linux 时，至少保证代码在所有目标平台能编译、
+# 平台相关分支（Java 检测 / XDG 路径 / natives 扩展名）能通过类型检查。
+# 注意：GitHub 的 macOS runner 均为 Apple 硬件，符合 Apple 许可；
+#       macos-latest 为 ARM64，本项目 macOS 构建同时支持 x86_64（通过 rustup target 交叉编译检查）。
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux (Ubuntu x86_64)
+            os: ubuntu-latest
+          - name: macOS (Apple Silicon)
+            os: macos-latest
+          - name: Windows (x86_64)
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: 缓存 Cargo 依赖
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 安装 Node（前端资源构建）
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 构建前端资源
+        run: npm run build
+
+      # Linux 上 Tauri 需要 WebKit2GTK 等系统库（仅编译检查也需要）
+      - name: 安装 Linux 系统依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl wget file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: 类型检查（全 workspace 含测试与 examples）
+        working-directory: src-tauri
+        run: cargo check --workspace --all-targets --locked
+
+      - name: Clippy（core 与 platform）
+        working-directory: src-tauri
+        run: cargo clippy -p mscl-core -p mscl-platform -- -D warnings
+
+      - name: 编译生产 exe（验证 custom-protocol 链接）
+        working-directory: src-tauri
+        run: cargo build --features custom-protocol --locked
+
+  # macOS x86_64 交叉编译检查：Intel runner 已弃用，
+  # 用 ARM64 runner + rustup target 交叉编译验证 x86_64-apple-darwin 目标。
+  macos-intel-cross:
+    name: macOS x86_64 (交叉编译检查)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust + x86_64 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: 缓存 Cargo 依赖
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 安装 Node 并构建前端
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # 只做 core/platform 的交叉编译检查，不链接 Tauri GUI
+      # （GUI 链接需对应架构的系统 SDK，交叉编译在此环境不可行）
+      - name: 检查 core/platform 的 x86_64 macOS 目标
+        working-directory: src-tauri
+        run: cargo check -p mscl-core -p mscl-platform --target x86_64-apple-darwin --locked

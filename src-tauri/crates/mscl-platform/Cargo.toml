@@ -1,0 +1,13 @@
+[package]
+name = "mscl-platform"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+tracing = { workspace = true }
+# platform 可依赖 core（单向：core 不依赖 platform），用于类型转换
+mscl-core = { path = "../mscl-core" }
+zip = { workspace = true }

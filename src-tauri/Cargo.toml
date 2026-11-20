@@ -1,0 +1,105 @@
+[package]
+name = "mscl-app"
+version = "0.1.0"
+description = "MSCL - 月之海启动器 (Moon Sea Client Launcher)"
+authors = ["MSCL Team"]
+edition = "2021"
+rust-version = "1.77.2"
+
+# 库名称：lib.rs 中的库供桌面入口与测试使用
+# 说明：staticlib / cdylib 是 Android / iOS 打包才需要的产物。
+# 桌面开发阶段生成这三者会让 rustc 额外产出数 GB 的中间文件，
+# 在 Windows 上极易卡在链接阶段。等进入移动端阶段再按需恢复。
+[lib]
+name = "mscl_app_lib"
+crate-type = ["rlib"]
+
+# ----------------------------------------------------------------------------
+# Cargo Workspace：包含核心层与平台层两个内部 crate
+# 这样做的好处：
+#   1. 领域逻辑 (core) 与平台操作 (platform) 彻底解耦
+#   2. 每个 crate 可独立单元测试
+#   3. 未来替换实现（如 Rust 下载引擎升级）不影响上层
+# ----------------------------------------------------------------------------
+# custom-protocol 决定 Tauri 使用内嵌 dist 还是 devUrl：
+# - 不启用：开发模式，加载 devUrl（Vite）
+# - 启用：生产模式，加载 generate_context! 编译期嵌入的 dist
+# cargo tauri build 会自动启用；直接 cargo build 需手动 --features custom-protocol
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[workspace]
+members = ["crates/mscl-core", "crates/mscl-platform"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77.2"
+license = "MIT"
+
+[workspace.dependencies]
+# 异步运行时
+tokio = { version = "1", features = ["full"] }
+# 序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 错误处理
+thiserror = "2"
+anyhow = "1"
+# HTTP 客户端（下载引擎用）
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
+# 哈希校验
+sha1 = "0.10"
+hex = "0.4"
+# 并发下载（buffer_unordered）
+futures = "0.3"
+# 日志
+tracing = "0.1"
+# native jar 解压（platform 层用）
+# 只启用 deflate：Minecraft native jar 用标准 deflate 压缩，
+# 默认特性会拉入 lzma-sys 等 C 库，在 Windows/MSVC 上编译易崩溃且无必要。
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+# ---------------- 应用实际依赖 ----------------
+[dependencies]
+# Tauri 2.x
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# 内部 crate
+mscl-core = { path = "crates/mscl-core" }
+mscl-platform = { path = "crates/mscl-platform" }
+
+# 异步与日志
+tokio = { workspace = true }
+tracing = { workspace = true }
+time = { version = "0.3", features = ["formatting", "local-offset"] }
+# 桥接层：创建 HTTP client、错误类型
+reqwest = { workspace = true }
+thiserror = { workspace = true }
+# 目录路径（platform 层默认目录用 dirs 更规范）
+dirs = "5"
+# 整合包（.mrpack 是 zip）解析
+zip = { workspace = true }
+tauri-plugin-dialog = "2"
+tauri-plugin-process = "2"
+# 运行监测：进程 CPU / 内存采样
+sysinfo = { version = "0.33", default-features = false, features = ["system"] }
+# 皮肤 data URL 编解码
+base64 = "0.22"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+# ----------------------------------------------------------------------------
+# 开发期编译性能
+# Tauri 应用本体在 Windows 上带 debuginfo=2 会写出数百 MB 的 .o，
+# 链接阶段可长时间停滞。这里只对本 crate 关闭调试信息与增量编译，
+# 依赖库仍沿用 workspace 默认 profile，避免全量重编译。
+# ----------------------------------------------------------------------------
+[profile.dev.package.mscl-app]
+debug = 0
+incremental = false
