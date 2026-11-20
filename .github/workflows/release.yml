@@ -1,0 +1,94 @@
+name: 发布启动器（GitHub Release）
+
+# 打 v* tag 时自动构建并发布，产物同时作为启动器自更新的来源：
+#   - mscl-app.exe          → 启动器自更新下载（updates.rs prepare_launcher_update）
+#   - MSCL_Setup_*.exe      → 用户首次安装
+#   - MSCL_Uninstall_*.exe  → 独立卸载器
+# 发布说明直接用 tag 对应的提交与变更日志，作为更新弹窗里的 markdown。
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag（如 v0.2.0），留空则用当前分支版本'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 缓存 Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            installer/src-tauri
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      # 一次性构建启动器 + 安装器 + 卸载器（脚本内部会跑 tsc / vite / cargo tauri build）
+      - name: 构建全部产物
+        run: npm run build:installer
+        shell: pwsh
+
+      - name: 校验产物存在
+        shell: pwsh
+        run: |
+          $checks = @(
+            @{ pattern = 'src-tauri/target/release/mscl-app.exe'; label = '启动器' },
+            @{ pattern = 'release/MSCL_Setup_*.exe'; label = '安装器' },
+            @{ pattern = 'release/MSCL_Uninstall_*.exe'; label = '卸载器' }
+          )
+          foreach ($c in $checks) {
+            $hit = Get-ChildItem -Path $c.pattern -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $hit) { throw "缺少产物($($c.label)): $($c.pattern)" }
+            Write-Host "$($c.label): $($hit.Name) = $($hit.Length) bytes"
+          }
+
+      - name: 生成发布说明
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $prev = git describe --tags --abbrev=0 HEAD^ 2>$null
+          if ($LASTEXITCODE -eq 0 -and $prev) {
+            $changes = git log --pretty=format:'- %s' "$prev..HEAD"
+          } else {
+            $changes = git log --pretty=format:'- %s' -10 HEAD
+          }
+          $downloads = "### 下载`n- 首次安装：MSCL_Setup-*.exe`n- 独立卸载：MSCL_Uninstall-*.exe`n- 自更新组件：mscl-app.exe（启动器内自动下载，一般无需手动获取）"
+          $body = "## MSCL $tag`n`n变更内容：`n`n$changes`n`n$downloads"
+          $body | Out-File -FilePath release-notes.md -Encoding utf8
+
+      - name: 发布 Release 并上传资产
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: MSCL ${{ github.ref_name }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            src-tauri/target/release/mscl-app.exe
+            release/MSCL_Setup_*.exe
+            release/MSCL_Uninstall_*.exe

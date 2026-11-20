@@ -1,0 +1,50 @@
+# ===== Rust / Tauri 构建产物（体积巨大，必须忽略）=====
+target/
+**/target/
+
+# ===== Tauri 更新签名私钥（绝不提交；公钥可提交）=====
+src-tauri/.keys/
+installer/src-tauri/.keys/
+*.key
+
+# ===== Node 依赖 =====
+node_modules/
+**/node_modules/
+
+# ===== 前端构建输出（CI 会从源码重新构建）=====
+dist/
+**/dist/
+dist-preview/
+**/dist-preview/
+
+# ===== 本地构建/发布产物（exe 走 GitHub Release 分发，不入库）=====
+release/
+.cache/
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# ===== 日志与临时文件 =====
+*.log
+*.tmp
+*.bak
+~$*
+Desktop.ini
+Thumbs.db
+
+# ===== 编辑器 / 系统 =====
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# ===== WorkBuddy 会话数据（非项目源码）=====
+.workbuddy/
+
+# ===== 环境变量 / 凭据 =====
+.env
+.env.*
+!.env.example

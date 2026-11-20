@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "manifestFile": "plugin.json",
+  "installRoot": "plugins",
+  "categories": ["core", "launcher", "server"],
+  "layers": ["harness", "module", "feature"],
+  "sources": ["builtin", "local", "github"],
+  "hooks": [
+    "onLoad", "onEnable", "onDisable",
+    "onBeforeLaunch", "onLaunch", "onAfterLaunch",
+    "onBeforeResourceInstall", "onResourceInstalled",
+    "onUpdateCheck", "onSettingsSave"
+  ],
+  "capabilities": [
+    "page", "settings", "resourceCategory", "theme", "command",
+    "launch", "download", "storage", "event", "i18n", "config"
+  ],
+  "extensionPoints": [
+    "page", "settings", "resource.category", "launch.step",
+    "download.source", "theme", "command"
+  ],
+  "configFieldTypes": ["string", "number", "boolean", "select", "string[]"],
+  "fields": {
+    "id": "唯一标识，小写字母、数字与短横线，1-64 位",
+    "name": "显示名称",
+    "version": "语义化版本",
+    "category": "core | launcher | server",
+    "layer": "harness | module | feature",
+    "description": "插件说明",
+    "author": "作者",
+    "entry": "扩展入口标识",
+    "enabled": "是否启用",
+    "builtin": "是否内置（不可卸载）",
+    "required": "是否必需（不可禁用）",
+    "source": "builtin | local | github",
+    "repo": "GitHub 仓库地址",
+    "capabilities": "提供的能力列表",
+    "hooks": "订阅的生命周期钩子",
+    "extensionPoints": "扩展点绑定数组，每项含 point 与 key",
+    "dependencies": "依赖的插件 ID 数组",
+    "configSchema": "配置字段数组，每项含 key/label/type/default 及可选 options/hint/min/max",
+    "icon": "图标字符",
+    "order": "加载顺序",
+    "schema": "DSL 版本，当前为 1"
+  }
+}
